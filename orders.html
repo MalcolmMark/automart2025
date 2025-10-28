@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orders - AutoMart</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Debug marker so you know you opened the correct file -->
+  <p style="color:yellow; font-size:14px; text-align:center; margin-bottom: 1rem;">
+    DEBUG ORDERS ACTIVE
+  </p>
+
+  <header>
+    <div class="brand">AutoMart</div>
+    <nav>
+      <a href="signup.html">Sign Up</a>
+      <a href="signin.html">Sign In</a>
+      <a href="post_car.html">Post Ad</a>
+      <a href="marketplace.html">Marketplace</a>
+      <a href="orders.html">Orders</a>
+      <a href="admin.html">Admin</a>
+    </nav>
+  </header>
+
+  <!-- Make a new purchase order -->
+  <section class="main-card">
+    <h1>Make Purchase Order</h1>
+    <h2>Submit an offer for a car listing</h2>
+
+    <form id="makeOrderForm">
+      <div class="form-group">
+        <label>Car ID</label>
+        <input name="car_id" required placeholder="Which car are you buying?" />
+      </div>
+
+      <div class="form-group">
+        <label>Your Offer ($)</label>
+        <input name="amount" type="number" required placeholder="e.g. 9200" />
+      </div>
+
+      <button class="primary-btn" type="submit">Place Order</button>
+    </form>
+
+    <div id="orderFeedback" class="feedback-box"></div>
+  </section>
+
+  <!-- Update my existing order's price -->
+  <section class="main-card">
+    <h1>Update Order Offer</h1>
+    <h2>You can only update while the order status is still 'pending'</h2>
+
+    <form id="updateOrderForm">
+      <div class="form-group">
+        <label>Order ID</label>
+        <input name="order_id" required placeholder="Your order ID" />
+      </div>
+
+      <div class="form-group">
+        <label>New Offer ($)</label>
+        <input name="new_price_offered" type="number" required placeholder="e.g. 9500" />
+      </div>
+
+      <button class="primary-btn" type="submit">Update Offer</button>
+    </form>
+
+    <div id="offerFeedback" class="feedback-box"></div>
+  </section>
+
+  <!-- Example of user's orders -->
+  <section class="wide-card">
+    <h1>My Orders (Example)</h1>
+    <h2>What you've offered so far</h2>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Order #</th>
+            <th>Car ID</th>
+            <th>Your Offer ($)</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="ordersTableBody">
+          <!-- Will fill with demo data -->
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <script>
+    // helper: safely turn a <form> into a plain object {field: value, ...}
+    function formToObject(formElem) {
+      var data = {};
+      var formData = new FormData(formElem);
+      formData.forEach(function(value, key) {
+        data[key] = value;
+      });
+      return data;
+    }
+
+    // demo data to show user's orders
+    var myDemoOrders = [
+      {
+        id: 101,
+        car_id: 1,
+        price_offered: 9000,
+        status: "pending"
+      },
+      {
+        id: 102,
+        car_id: 2,
+        price_offered: 14800,
+        status: "accepted"
+      }
+    ];
+
+    function renderOrdersTable() {
+      var tbody = document.getElementById("ordersTableBody");
+      tbody.innerHTML = "";
+      myDemoOrders.forEach(function(order) {
+        var tr = document.createElement("tr");
+        tr.innerHTML = ''
+          + '<td>' + order.id + '</td>'
+          + '<td>' + order.car_id + '</td>'
+          + '<td>$' + order.price_offered + '</td>'
+          + '<td>'
+          +   '<span class="status-pill ' + (order.status === "pending"
+                ? 'status-available'
+                : 'status-sold'
+              ) + '">'
+          +     order.status
+          +   '</span>'
+          + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    renderOrdersTable();
+
+    // handle creating a purchase order
+    // represents: POST /api/v1/order  with body { car_id, amount }
+    var makeOrderForm = document.getElementById("makeOrderForm");
+    makeOrderForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      var payload = formToObject(makeOrderForm);
+
+      var feedback = document.getElementById("orderFeedback");
+      feedback.textContent =
+        "📝 Ready to POST /api/v1/order with: " + JSON.stringify(payload);
+
+      // real flow later:
+      // fetch('/api/v1/order', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     Authorization: 'Bearer <token>'
+      //   },
+      //   body: JSON.stringify(payload)
+      // })
+      // .then(r => r.json())
+      // .then(res => { feedback.textContent = 'Order created!' });
+    });
+
+    // handle updating offer price on a pending order
+    // represents: PATCH /api/v1/order/:order_id/price
+    // body { new_price_offered }
+    var updateOrderForm = document.getElementById("updateOrderForm");
+    updateOrderForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      var payload = formToObject(updateOrderForm);
+
+      var msg =
+        "💲 Ready to PATCH /api/v1/order/" +
+        payload.order_id +
+        "/price with: " +
+        JSON.stringify({ new_price_offered: payload.new_price_offered });
+
+      var feedback2 = document.getElementById("offerFeedback");
+      feedback2.textContent = msg;
+
+      // real flow later:
+      // fetch('/api/v1/order/' + payload.order_id + '/price', {
+      //   method: 'PATCH',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     Authorization: 'Bearer <token>'
+      //   },
+      //   body: JSON.stringify({ new_price_offered: payload.new_price_offered })
+      // })
+      // .then(r => r.json())
+      // .then(res => { feedback2.textContent = 'Offer updated!' });
+    });
+  </script>
+
+</body>
+</html>
