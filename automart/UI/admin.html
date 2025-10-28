@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard - AutoMart</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Debug marker so you know you're viewing the right file -->
+  <p style="color:yellow; font-size:14px; text-align:center; margin-bottom: 1rem;">
+    DEBUG ADMIN ACTIVE
+  </p>
+
+  <header>
+    <div class="brand">AutoMart (Admin)</div>
+    <nav>
+      <a href="signup.html">Sign Up</a>
+      <a href="signin.html">Sign In</a>
+      <a href="post_car.html">Post Ad</a>
+      <a href="marketplace.html">Marketplace</a>
+      <a href="orders.html">Orders</a>
+      <a href="admin.html">Admin</a>
+    </nav>
+  </header>
+
+  <!-- Admin view of all ads -->
+  <section class="wide-card">
+    <h1>All Car Ads</h1>
+    <h2>Includes sold and available listings</h2>
+
+    <div class="table-scroll">
+      <table id="adminCarsTable">
+        <thead>
+          <tr>
+            <th>#ID</th>
+            <th>Owner (User ID)</th>
+            <th>Make / Model</th>
+            <th>Price ($)</th>
+            <th>Car State</th>
+            <th>Status</th>
+            <th>Body Type</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Will be populated by JS -->
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Admin delete form -->
+  <section class="main-card">
+    <h1>Delete Ad</h1>
+    <h2>Remove fraudulent / invalid listing</h2>
+
+    <form id="deleteAdForm">
+      <div class="form-group">
+        <label>Car (Ad) ID</label>
+        <input name="car_id" required placeholder="Car ID to delete" />
+      </div>
+
+      <button class="danger-btn" type="submit">Delete Ad</button>
+    </form>
+
+    <div id="adminFeedback" class="feedback-box"></div>
+  </section>
+
+  <script>
+    // Demo list of ALL ads (sold or available)
+    // In reality, admin would call GET /api/v1/car/all or similar protected admin route
+    const adminDemoCars = [
+      {
+        id: 1,
+        owner: 5,
+        manufacturer: "Toyota",
+        model: "Corolla",
+        price: 5000,
+        state: "used",
+        status: "available",
+        body_type: "sedan"
+      },
+      {
+        id: 2,
+        owner: 2,
+        manufacturer: "Nissan",
+        model: "X-Trail",
+        price: 10000,
+        state: "used",
+        status: "sold",
+        body_type: "suv"
+      },
+      {
+        id: 3,
+        owner: 9,
+        manufacturer: "Tesla",
+        model: "Model 3",
+        price: 15000,
+        state: "new",
+        status: "available",
+        body_type: "sedan"
+      }
+    ];
+
+    // Render admin table
+    function renderAdminCars() {
+      const tbody = document.querySelector("#adminCarsTable tbody");
+      tbody.innerHTML = "";
+      adminDemoCars.forEach(car => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${car.id}</td>
+          <td>${car.owner}</td>
+          <td>${car.manufacturer} ${car.model}</td>
+          <td>$${car.price}</td>
+          <td>${car.state}</td>
+          <td>
+            <span class="status-pill ${
+              car.status === "available" ? "status-available" : "status-sold"
+            }">${car.status}</span>
+          </td>
+          <td>${car.body_type}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    renderAdminCars();
+
+    // Delete ad form mock
+    // Represents DELETE /api/v1/car/:car_id
+    document.getElementById("deleteAdForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const form = e.target;
+      const carId = form.car_id.value;
+
+      // Show the simulated request
+      document.getElementById("adminFeedback").textContent =
+        "🗑 Ready to DELETE /api/v1/car/" + carId +
+        " (expected response: 'Car Ad successfully deleted')";
+
+      // Real-world flow later:
+      // fetch('/api/v1/car/' + carId, {
+      //   method: 'DELETE',
+      //   headers: {
+      //     Authorization: 'Bearer <admin token>'
+      //   }
+      // })
+      // .then(r => r.json())
+      // .then(res => { ... show success or error ... });
+    });
+  </script>
+
+</body>
+</html>
