@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Seller Dashboard - AutoMart</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header>
+  <div class="brand">AutoMart</div>
+  <nav>
+    <a href="signup.html">Sign Up</a>
+    <a href="signin.html">Sign In</a>
+    <a href="post_car.html">Post Ad</a>
+    <a href="marketplace.html">Marketplace</a>
+    <a href="orders.html">Orders</a>
+    <a href="admin.html">Admin</a>
+  </nav>
+</header>
+
+<section class="main-card">
+  <h1>Seller Dashboard</h1>
+  <h2>Post a Car Ad</h2>
+
+  <form id="postCarForm">
+    <div class="form-group">
+      <label>Manufacturer</label>
+      <input name="manufacturer" required placeholder="e.g. Toyota" />
+    </div>
+
+    <div class="form-group">
+      <label>Model</label>
+      <input name="model" required placeholder="e.g. Corolla" />
+    </div>
+
+    <div class="form-group">
+      <label>Price ($)</label>
+      <input name="price" type="number" required />
+    </div>
+
+    <div class="form-group">
+      <label>State</label>
+      <select name="state" required>
+        <option value="">Select...</option>
+        <option value="new">New</option>
+        <option value="used">Used</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Body Type</label>
+      <input name="body_type" placeholder="e.g. SUV, Sedan" required />
+    </div>
+
+    <div class="form-group">
+      <label>Description</label>
+      <textarea name="description" rows="3" placeholder="Short car description"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Upload Image</label>
+      <input type="file" name="image_url" accept="image/*" />
+    </div>
+
+    <button class="primary-btn" type="submit">Post Car</button>
+  </form>
+
+  <div id="postFeedback" class="feedback-box"></div>
+</section>
+
+<!-- Update price -->
+<section class="main-card">
+  <h2>Update Car Price</h2>
+  <form id="updatePriceForm">
+    <div class="form-group">
+      <label>Car ID</label>
+      <input name="id" required placeholder="Car ID" />
+    </div>
+    <div class="form-group">
+      <label>New Price ($)</label>
+      <input name="price" type="number" required />
+    </div>
+    <button class="primary-btn" type="submit">Update Price</button>
+  </form>
+  <div id="priceFeedback" class="feedback-box"></div>
+</section>
+
+<!-- Mark as sold -->
+<section class="main-card">
+  <h2>Mark Car as Sold</h2>
+  <form id="markSoldForm">
+    <div class="form-group">
+      <label>Car ID</label>
+      <input name="id" required placeholder="Car ID" />
+    </div>
+    <button class="primary-btn" type="submit">Mark Sold</button>
+  </form>
+  <div id="soldFeedback" class="feedback-box"></div>
+</section>
+
+<!-- Flag/report fraud -->
+<section class="main-card">
+  <h2>Report Fraudulent Ad</h2>
+  <form id="flagForm">
+    <div class="form-group">
+      <label>Car ID</label>
+      <input name="car_id" required placeholder="Car ID" />
+    </div>
+    <div class="form-group">
+      <label>Reason</label>
+      <input name="reason" required placeholder="Why is this fraudulent?" />
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea name="description" rows="3"></textarea>
+    </div>
+    <button class="danger-btn" type="submit">Report Fraud</button>
+  </form>
+  <div id="flagFeedback" class="feedback-box"></div>
+</section>
+
+<script>
+/* Mock JS actions
+   When wired to backend later, these forms will call:
+   POST   /api/v1/car             (create ad)
+   PATCH  /api/v1/car/:id/price   (update price)
+   PATCH  /api/v1/car/:id/status  (mark sold)
+   POST   /api/v1/flag            (report fraud)
+   Each must include Authorization: Bearer <token> from signin.  :contentReference[oaicite:1]{index=1}
+*/
+
+// POST car ad
+document.getElementById('postCarForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target).entries());
+  document.getElementById('postFeedback').textContent =
+    "🚗 Ready to POST /api/v1/car with: " + JSON.stringify(data);
+});
+
+// UPDATE price
+document.getElementById('updatePriceForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target).entries());
+  document.getElementById('priceFeedback').textContent =
+    "💲 Ready to PATCH /api/v1/car/" + data.id + "/price with: " + JSON.stringify(data);
+});
+
+// MARK sold
+document.getElementById('markSoldForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target).entries());
+  document.getElementById('soldFeedback').textContent =
+    "✅ Ready to PATCH /api/v1/car/" + data.id + "/status (set status='sold')";
+});
+
+// FLAG fraud
+document.getElementById('flagForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target).entries());
+  document.getElementById('flagFeedback').textContent =
+    "⚠️ Ready to POST /api/v1/flag with: " + JSON.stringify(data);
+});
+</script>
+
+</body>
+</html>
