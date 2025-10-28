@@ -1,0 +1,222 @@
+:root {
+  --bg: #0f172a;
+  --panel: #1e293b;
+  --accent: #38bdf8;
+  --text-main: #f8fafc;
+  --text-dim: #94a3b8;
+  --radius: 12px;
+  --gap: 1rem;
+  --border: #334155;
+  --danger: #ef4444;
+  --success: #10b981;
+  --warning: #facc15;
+  --font-stack: system-ui, -apple-system, BlinkMacSystemFont, "Inter", Roboto, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-stack);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text-main);
+  padding: 2rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top nav bar */
+
+header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1rem;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+header .brand {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+header nav a {
+  text-decoration: none;
+  color: var(--text-dim);
+  font-size: .9rem;
+  padding: .4rem .6rem;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+}
+header nav a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Cards / panels */
+
+.main-card {
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  max-width: 500px;
+  width: 100%;
+  margin-bottom: 2rem;
+}
+
+.wide-card {
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  width: 100%;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+}
+
+/* Headings */
+
+h1 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-main);
+}
+
+h2 {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-bottom: 1rem;
+}
+
+/* Forms */
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+.form-group label {
+  font-size: .8rem;
+  color: var(--text-dim);
+  margin-bottom: .4rem;
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+  background-color: #0f172a;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-main);
+  font-size: .9rem;
+  padding: .75rem .8rem;
+  width: 100%;
+}
+
+/* Buttons */
+
+button.primary-btn {
+  background-color: var(--accent);
+  color: #000;
+  font-weight: 600;
+  border: 0;
+  border-radius: var(--radius);
+  padding: .8rem 1rem;
+  font-size: .9rem;
+  cursor: pointer;
+  width: 100%;
+}
+button.primary-btn:hover {
+  filter: brightness(1.1);
+}
+
+button.danger-btn {
+  background-color: var(--danger);
+  color: #000;
+  font-weight: 600;
+  border: 0;
+  border-radius: var(--radius);
+  padding: .6rem .8rem;
+  font-size: .8rem;
+  cursor: pointer;
+}
+button.danger-btn:hover { filter: brightness(1.1); }
+
+/* Status pills for "sold/available" labels */
+
+.status-pill {
+  display: inline-block;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 600;
+  padding: .3rem .6rem;
+}
+.status-available { background-color: var(--success); color: #000; }
+.status-sold { background-color: var(--warning); color: #000; }
+
+/* Tables */
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+  font-size: .8rem;
+  color: var(--text-main);
+}
+th, td {
+  text-align: left;
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+th {
+  color: var(--text-dim);
+  font-weight: 500;
+  background-color: rgba(255,255,255,0.03);
+}
+
+/* Filters row for marketplace */
+
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.filters-row .form-group {
+  min-width: 140px;
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* Feedback area where we show mock API payloads */
+
+.feedback-box {
+  margin-top: 1rem;
+  font-size: .8rem;
+  line-height: 1.4;
+  color: var(--accent);
+  min-height: 1.2rem;
+}
+.feedback-box.error {
+  color: var(--danger);
+}
+.feedback-box.success {
+  color: var(--success);
+}
+
+@media (min-width: 768px) {
+  .main-card {
+    max-width: 420px;
+  }
+}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sign In - AutoMart</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header>
+  <div class="brand">AutoMart</div>
+  <nav>
+    <a href="signup.html">Sign Up</a>
+    <a href="signin.html">Sign In</a>
+    <a href="post_car.html">Post Ad</a>
+    <a href="marketplace.html">Marketplace</a>
+    <a href="orders.html">Orders</a>
+    <a href="admin.html">Admin</a>
+  </nav>
+</header>
+
+<section class="main-card">
+  <h1>Welcome back</h1>
+  <h2>Sign in to continue</h2>
+
+  <form id="signinForm">
+    <div class="form-group">
+      <label>Email</label>
+      <input name="email" type="email" required placeholder="you@example.com" />
+    </div>
+
+    <div class="form-group">
+      <label>Password</label>
+      <input name="password" type="password" required />
+    </div>
+
+    <button class="primary-btn" type="submit">Sign In</button>
+  </form>
+
+  <div id="signinFeedback" class="feedback-box"></div>
+</section>
+
+<script>
+/*
+When wired to backend:
+- This will POST /api/v1/auth/signin with { email, password }
+- Backend returns { status, data: { token, id, ... } }
+- You will store token in localStorage and send it as:
+  Authorization: Bearer <token>
+  for any protected route.  :contentReference[oaicite:1]{index=1}
+*/
+
+document.getElementById('signinForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target).entries());
+
+  // Mock behavior for now (no live API yet)
+  document.getElementById('signinFeedback').textContent =
+    "🔐 Ready to POST /api/v1/auth/signin with: " + JSON.stringify(data);
+
+  // Example of how you'd store token later:
+  // localStorage.setItem('token', response.data.token)
+});
+</script>
+
+</body>
+</html>
