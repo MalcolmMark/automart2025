@@ -1,63 +1,69 @@
 import os
-import hashlib
 from datetime import timedelta
 
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Temporary in-memory store (will be replaced by a real DB later)
 users = []
 
 
-def hash_password(password: str) -> str:
-    """Hash a password using SHA-256 (demo-grade, not for production)."""
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
-
-
-def verify_password(stored_hash: str, password: str) -> bool:
-    """Check a plaintext password against the stored SHA-256 hash."""
-    return stored_hash == hash_password(password)
-
-
 def create_app() -> Flask:
     """
-    Minimal application factory.
+    Application factory for the AutoMart backend.
 
-    This lets us scale into a more modular structure (blueprints, configs, etc.)
-    without rewriting everything later.
+    Using a factory pattern allows:
+    - Multiple app instances (testing, dev, prod)
+    - Config injection
+    - Cleaner separation into blueprints later
     """
     app = Flask(__name__)
 
     # --- Configuration ---
-    app.config["JWT_SECRET_KEY"] = os.environ.get(
-        "JWT_SECRET_KEY",
-        "dev-super-secret-key-change-me",
-    )
-    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=1)
 
-    # Testing flag can be overridden in tests
+    # Never hard-code secrets in code. Enforce env variable.
+    try:
+        jwt_secret = os.environ["JWT_SECRET_KEY"]
+    except KeyError as exc:
+        raise RuntimeError(
+            "JWT_SECRET_KEY environment variable must be set (no hard-coded secrets)."
+        ) from exc
+
+    app.config["JWT_SECRET_KEY"] = jwt_secret
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=1)
     app.config.setdefault("TESTING", False)
 
-    jwt = JWTManager(app)  # noqa: F841
+    jwt = JWTManager(app)  # noqa: F841  # used by flask_jwt_extended internals
 
     # --- Routes ---
 
     @app.route("/")
     def home():
+        """
+        Simple health check for the API.
+        """
         return jsonify({"message": "AutoMart API v1 running"}), 200
 
     @app.route("/api/v1/auth/signup", methods=["POST"])
     def signup():
         """
-        Expected JSON body (aligns with your signup UI):
+        Register a new user.
+
+        Expected JSON body:
         {
           "email": "you@example.com",
           "first_name": "John",
           "last_name": "Doe",
           "password": "plaintext",
           "address": "Kampala",
-          "is_admin": false | true  # or "false"/"true" from HTML form
+          // optional:
+          "admin_code": "some-secret-code"
         }
+
+        Notes:
+        - We do NOT trust a client-side `is_admin` flag.
+        - Admin creation is controlled via ADMIN_SIGNUP_CODE env var.
         """
         data = request.get_json(silent=True) or {}
 
@@ -80,28 +86,34 @@ def create_app() -> Flask:
                 400,
             )
 
-        # Normalise is_admin to bool
-        raw_is_admin = data.get("is_admin", False)
-        if isinstance(raw_is_admin, str):
-            is_admin = raw_is_admin.strip().lower() == "true"
-        else:
-            is_admin = bool(raw_is_admin)
+        email = data["email"].strip().lower()
 
         # Check for duplicate email
-        if any(u["email"].lower() == data["email"].lower() for u in users):
+        if any(u["email"] == email for u in users):
             return jsonify({"error": "User already exists"}), 400
+
+        # Admin creation is guarded by an env-based secret code
+        is_admin = False
+        admin_code = data.get("admin_code")
+        expected_admin_code = os.environ.get("ADMIN_SIGNUP_CODE")
+
+        if admin_code and expected_admin_code and admin_code == expected_admin_code:
+            is_admin = True
 
         user_id = len(users) + 1
 
         user = {
             "id": user_id,
-            "email": data["email"].lower(),
+            "email": email,
             "first_name": data["first_name"].strip(),
             "last_name": data["last_name"].strip(),
             "address": data["address"].strip(),
             "is_admin": is_admin,
-            # Store only SHA-256 hash
-            "password_hash": hash_password(data["password"]),
+            # Store only hashed password (PBKDF2, not raw SHA/scrypt)
+            "password_hash": generate_password_hash(
+                data["password"],
+                method="pbkdf2:sha256",
+            ),
         }
 
         users.append(user)
@@ -128,6 +140,8 @@ def create_app() -> Flask:
     @app.route("/api/v1/auth/signin", methods=["POST"])
     def signin():
         """
+        Sign in an existing user.
+
         Expected JSON body:
         {
           "email": "you@example.com",
@@ -136,7 +150,7 @@ def create_app() -> Flask:
         """
         data = request.get_json(silent=True) or {}
 
-        email = data.get("email", "").lower()
+        email = data.get("email", "").strip().lower()
         password = data.get("password")
 
         if not email or not password:
@@ -144,7 +158,7 @@ def create_app() -> Flask:
 
         user = next((u for u in users if u["email"] == email), None)
 
-        if not user or not verify_password(user["password_hash"], password):
+        if not user or not check_password_hash(user["password_hash"], password):
             # Generic message to avoid leaking which field is wrong
             return jsonify({"error": "Invalid email or password"}), 400
 
