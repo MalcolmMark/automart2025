@@ -1,0 +1,19 @@
+language: python
+python:
+  - "3.9"
+
+# Use container-based infra
+dist: jammy
+
+install:
+  - pip install --upgrade pip
+  - pip install -r backend/requirements.txt
+  - pip install coveralls
+
+script:
+  - cd backend
+  - pytest --cov=. --cov-report=xml
+
+after_success:
+  - cd backend
+  - coveralls
