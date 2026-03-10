@@ -5,112 +5,136 @@ from flask import Flask, request, jsonify, Blueprint
 from flask_jwt_extended import JWTManager, create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# Temporary in-memory store (placeholder until DB integration)
+# Temporary in-memory store (will be replaced by a real DB later)
 users = []
 
-# -------------------------
-# Auth blueprint + routes
-# -------------------------
+# --- Blueprint setup ---
+
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
 
 
-def _get_env(name: str) -> str:
+def _get_jwt_secret() -> str:
     """
-    Safely fetch required environment variables.
+    Retrieve the JWT secret from the environment.
 
-    Kept outside create_app() to keep its cognitive complexity low.
+    Extracted into a helper to reduce cognitive complexity inside create_app().
     """
-    value = os.environ.get(name)
-    if not value:
-        raise RuntimeError(f"Required environment variable '{name}' is missing.")
-    return value
+    try:
+        return os.environ["JWT_SECRET_KEY"]
+    except KeyError as exc:
+        raise RuntimeError(
+            "JWT_SECRET_KEY environment variable must be set (no hard-coded secrets)."
+        ) from exc
 
 
 @auth_bp.route("/signup", methods=["POST"])
 def signup():
     """
-    User registration with validation, hashing, and controlled admin creation.
+    Register a new user.
 
-    Response contract (what your tests expect):
-    - 201 on success
+    Expected JSON body:
     {
-      "message": "User registered",
-      "user": { ...no password_hash... },
-      "access_token": "<jwt>"
+      "email": "you@example.com",
+      "first_name": "John",
+      "last_name": "Doe",
+      "password": "plaintext",
+      "address": "Kampala",
+      // optional:
+      "admin_code": "some-secret-code"
     }
+
+    Notes:
+    - We do NOT trust a client-side `is_admin` flag.
+    - Admin creation is controlled via ADMIN_SIGNUP_CODE env var.
     """
     data = request.get_json(silent=True) or {}
 
-    required = ["email", "first_name", "last_name", "password", "address"]
-    missing = [f for f in required if not data.get(f)]
+    required_fields = [
+        "email",
+        "first_name",
+        "last_name",
+        "password",
+        "address",
+    ]
+    missing = [f for f in required_fields if not data.get(f)]
     if missing:
         return (
             jsonify(
-                {"error": "Missing required fields", "missing_fields": missing}
+                {
+                    "error": "Missing required fields",
+                    "missing_fields": missing,
+                }
             ),
             400,
         )
 
     email = data["email"].strip().lower()
+
+    # Check for duplicate email
     if any(u["email"] == email for u in users):
         return jsonify({"error": "User already exists"}), 400
 
-    # Admin creation guard using an env-based secret code
+    # Admin creation is guarded by an env-based secret code
     is_admin = False
     admin_code = data.get("admin_code")
-    expected_code = os.environ.get("ADMIN_SIGNUP_CODE")
+    expected_admin_code = os.environ.get("ADMIN_SIGNUP_CODE")
 
-    if admin_code and expected_code and admin_code == expected_code:
+    if admin_code and expected_admin_code and admin_code == expected_admin_code:
         is_admin = True
 
+    user_id = len(users) + 1
+
     user = {
-        "id": len(users) + 1,
+        "uuid": f"user_{user_id}",
+        "id": user_id,
         "email": email,
         "first_name": data["first_name"].strip(),
         "last_name": data["last_name"].strip(),
         "address": data["address"].strip(),
-        "password_hash": generate_password_hash(
-            data["password"], method="pbkdf2:sha256"
-        ),
         "is_admin": is_admin,
+        # Store only hashed password (PBKDF2, not raw SHA/scrypt)
+        "password_hash": generate_password_hash(
+            data["password"],
+            method="pbkdf2:sha256",
+        ),
     }
+
     users.append(user)
 
-    # Response must not expose password_hash
-    user_response = {k: v for k, v in user.items() if k != "password_hash"}
-
-    # Issue token on signup (tests expect access_token in signup response)
+    # Issue token on signup
     access_token = create_access_token(
         identity={"id": user["id"], "is_admin": user["is_admin"]}
     )
 
-    return (
-        jsonify(
-            {
-                "message": "User registered",
-                "user": user_response,
-                "access_token": access_token,
-            }
-        ),
-        201,
-    )
+    response_payload = {
+        "message": "User registered",
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "first_name": user["first_name"],
+            "last_name": user["last_name"],
+            "address": user["address"],
+            "is_admin": user["is_admin"],
+        },
+        "access_token": access_token,
+    }
+    return jsonify(response_payload), 201
 
 
 @auth_bp.route("/signin", methods=["POST"])
 def signin():
     """
-    Authenticate user and return JWT + user payload.
+    Sign in an existing user.
 
-    Response contract (what your tests expect):
-    - 200 on success
+    Expected JSON body:
     {
-      "message": "Signin successful",
-      "access_token": "<jwt>",
-      "user": { ...no password_hash... }
+      "email": "goats@gmail.com",
+      "password": "plaintext"
     }
     """
     data = request.get_json(silent=True) or {}
+
     email = data.get("email", "").strip().lower()
     password = data.get("password")
 
@@ -118,20 +142,28 @@ def signin():
         return jsonify({"error": "Email and password are required"}), 400
 
     user = next((u for u in users if u["email"] == email), None)
+
     if not user or not check_password_hash(user["password_hash"], password):
+        # Generic message to avoid leaking which field is wrong
         return jsonify({"error": "Invalid email or password"}), 400
 
     access_token = create_access_token(
         identity={"id": user["id"], "is_admin": user["is_admin"]}
     )
-    user_response = {k: v for k, v in user.items() if k != "password_hash"}
 
     return (
         jsonify(
             {
                 "message": "Signin successful",
                 "access_token": access_token,
-                "user": user_response,
+                "user": {
+                    "id": user["id"],
+                    "email": user["email"],
+                    "first_name": user["first_name"],
+                    "last_name": user["last_name"],
+                    "address": user["address"],
+                    "is_admin": user["is_admin"],
+                },
             }
         ),
         200,
@@ -142,21 +174,27 @@ def create_app() -> Flask:
     """
     Application factory for the AutoMart backend.
 
-    Kept intentionally simple to satisfy Sonar's cognitive complexity rules.
+    Using a factory pattern allows:
+    - Multiple app instances (testing, dev, prod)
+    - Config injection
+    - Cleaner separation into blueprints later
     """
     app = Flask(__name__)
 
     # --- Configuration ---
-    app.config["JWT_SECRET_KEY"] = _get_env("JWT_SECRET_KEY")
-    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=12)
+    jwt_secret = _get_jwt_secret()
+    app.config["JWT_SECRET_KEY"] = jwt_secret
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=1)
     app.config.setdefault("TESTING", False)
 
-    # Initialize JWT extension (no unused local variable)
+    # Initialize JWT extension (no need to store in a local variable)
     JWTManager(app)
 
-    # Health check / root endpoint
-    @app.get("/")
+    @app.route("/")
     def home():
+        """
+        Simple health check for the API.
+        """
         return jsonify({"message": "AutoMart API v1 running"}), 200
 
     # Register blueprints
@@ -167,4 +205,4 @@ def create_app() -> Flask:
 
 if __name__ == "__main__":
     application = create_app()
-    application.run(debug=True)
+    isinstance(application, Flask)  # sanity check for type hinting ass

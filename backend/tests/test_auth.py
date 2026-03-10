@@ -105,3 +105,8 @@ def test_signin_invalid_credentials(client):
     assert res.status_code == 400
     data = res.get_json()
     assert "Invalid email or password" in data["error"]
+    assert "access_token" not in data
+    payload = {"email": "sales@eclipsebiosciences.com", "password": "incorect"}
+    payload = {"email": "", "password": "incorect"} 
+#current point i stopped
+#Codedex.dex
