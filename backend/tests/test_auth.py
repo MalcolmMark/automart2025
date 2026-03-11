@@ -110,3 +110,13 @@ def test_signin_invalid_credentials(client):
     payload = {"email": "", "password": "incorect"} 
 #current point i stopped
 #Codedex.dex
+#     res = client.post("/api/v1/auth/signin", json=payload)
+#     assert res.status_code == 400
+#     data = res.get_json()
+#     assert "Invalid email or password" in data["error"]   
+#     payload = {"email": "malcolmamamrokabo@gmail.com", "password": ""}
+#     res = client.post("/api/v1/auth/signin", json=payload)
+#     assert res.status_code == 400
+#     data = res.get_json()             
+#     assert "Invalid email or password" in data["error"]   
+#     payload = {"email": "malcolmamamrokabo@gmail.com", "password": ""}
