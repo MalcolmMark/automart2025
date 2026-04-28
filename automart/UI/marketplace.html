@@ -4,237 +4,168 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Marketplace - AutoMart</title>
-
-  <!-- Load shared styles -->
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div class="page-shell">
+    <header>
+      <div class="brand">AutoMart</div>
+      <nav>
+        <a href="signup.html">Sign Up</a>
+        <a href="signin.html">Sign In</a>
+        <a href="post_car.html">Post Ad</a>
+        <a href="marketplace.html" class="active">Marketplace</a>
+        <a href="orders.html">Orders</a>
+        <a href="admin.html">Admin</a>
+      </nav>
+    </header>
 
-  <!-- DEBUG marker so you know you're loading THIS file -->
-  <p style="color:yellow; font-size:14px; text-align:center; margin-bottom: 1rem;">
-    DEBUG MARKETPLACE ACTIVE
-  </p>
-
-  <!-- Top navigation -->
-  <header>
-    <div class="brand">AutoMart</div>
-    <nav>
-      <a href="signup.html">Sign Up</a>
-      <a href="signin.html">Sign In</a>
-      <a href="post_car.html">Post Ad</a>
-      <a href="marketplace.html">Marketplace</a>
-      <a href="orders.html">Orders</a>
-      <a href="admin.html">Admin</a>
-    </nav>
-  </header>
-
-  <!-- Car listings / filters -->
-  <section class="wide-card">
-    <h1>Available Cars</h1>
-    <h2>Filter unsold listings</h2>
-
-    <!-- FILTER BAR -->
-    <div class="filters-row">
-      <div class="form-group">
-        <label>Min Price ($)</label>
-        <input id="minPrice" type="number" placeholder="e.g. 2000" />
+    <section class="wide-card section-stack">
+      <div>
+        <h1>Marketplace</h1>
+        <h2>Live unsold listings from the API</h2>
       </div>
 
-      <div class="form-group">
-        <label>Max Price ($)</label>
-        <input id="maxPrice" type="number" placeholder="e.g. 10000" />
+      <div class="filters-row">
+        <div class="form-group">
+          <label>Min Price ($)</label>
+          <input id="minPrice" type="number" min="0" placeholder="e.g. 2000" />
+        </div>
+        <div class="form-group">
+          <label>Max Price ($)</label>
+          <input id="maxPrice" type="number" min="0" placeholder="e.g. 10000" />
+        </div>
+        <div class="form-group">
+          <label>Manufacturer</label>
+          <input id="manufacturerFilter" placeholder="e.g. Toyota" />
+        </div>
+        <div class="form-group">
+          <label>State</label>
+          <select id="stateFilter">
+            <option value="">Any</option>
+            <option value="new">New</option>
+            <option value="used">Used</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Body Type</label>
+          <input id="bodyTypeFilter" placeholder="e.g. SUV" />
+        </div>
+        <div class="form-group">
+          <label>Sort</label>
+          <select id="sortFilter">
+            <option value="newest">Newest</option>
+            <option value="price_asc">Price: Low to High</option>
+            <option value="price_desc">Price: High to Low</option>
+          </select>
+        </div>
       </div>
 
-      <div class="form-group">
-        <label>Manufacturer</label>
-        <input id="manufacturerFilter" placeholder="e.g. Toyota" />
+      <div style="display:flex; gap:.75rem; flex-wrap:wrap;">
+        <button class="primary-btn" id="applyFiltersBtn" style="max-width:220px;">Apply Filters</button>
+        <button class="primary-btn" id="refreshBtn" style="max-width:180px; background:#334155; color:#f8fafc;">Refresh</button>
       </div>
 
-      <div class="form-group">
-        <label>State</label>
-        <select id="stateFilter">
-          <option value="">Any</option>
-          <option value="new">New</option>
-          <option value="used">Used</option>
-        </select>
+      <div class="table-scroll">
+        <table id="carsTable">
+          <thead>
+            <tr>
+              <th>#ID</th>
+              <th>Make / Model</th>
+              <th>Price ($)</th>
+              <th>State</th>
+              <th>Status</th>
+              <th>Body Type</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <p id="emptyState" class="empty-state" hidden>No cars match your current filters.</p>
       </div>
 
-      <div class="form-group">
-        <label>Body Type</label>
-        <select id="bodyTypeFilter">
-          <option value="">Any</option>
-          <option value="sedan">Sedan</option>
-          <option value="suv">SUV</option>
-          <option value="truck">Truck</option>
-          <option value="van">Van</option>
-          <option value="hatch">Hatchback</option>
-        </select>
-      </div>
-    </div>
-
-    <button class="primary-btn" id="applyFiltersBtn" style="max-width:200px;">
-      Apply Filters
-    </button>
-
-    <!-- TABLE OF CARS -->
-    <div class="table-scroll" style="margin-top:1.5rem;">
-      <table id="carsTable">
-        <thead>
-          <tr>
-            <th>#ID</th>
-            <th>Make / Model</th>
-            <th>Price ($)</th>
-            <th>State</th>
-            <th>Status</th>
-            <th>Body Type</th>
-            <th>View</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Will be populated by JavaScript -->
-        </tbody>
-      </table>
-    </div>
-
-    <!-- We show the simulated API call here -->
-    <div id="marketFeedback" class="feedback-box"></div>
-  </section>
-
-  <!-- View a specific car -->
-  <section class="main-card">
-    <h1>View Car Details</h1>
-    <form id="viewCarForm">
-      <div class="form-group">
-        <label>Car ID</label>
-        <input name="car_id" required placeholder="Enter car ID" />
-      </div>
-      <button class="primary-btn" type="submit">Fetch Car</button>
-    </form>
-
-    <!-- We show the single-car API call here -->
-    <div id="singleCarFeedback" class="feedback-box"></div>
-  </section>
+      <div id="marketFeedback" class="feedback-box"></div>
+    </section>
+  </div>
 
   <script>
-    // Simple popup so you KNOW this exact file's JS ran
-    alert("JS is running on marketplace.html");
+    const API_BASE = "http://127.0.0.1:5000/api/v1/car";
 
-    // Demo inventory data (pretend it came from /api/v1/car?status=available)
-    const demoCars = [
-      {
-        id: 1,
-        manufacturer: "Toyota",
-        model: "Corolla",
-        price: 5000,
-        state: "used",
-        status: "available",
-        body_type: "sedan"
-      },
-      {
-        id: 2,
-        manufacturer: "Tesla",
-        model: "Model 3",
-        price: 15000,
-        state: "new",
-        status: "available",
-        body_type: "sedan"
-      },
-      {
-        id: 3,
-        manufacturer: "Nissan",
-        model: "X-Trail",
-        price: 10000,
-        state: "used",
-        status: "sold",
-        body_type: "suv"
-      }
-    ];
+    function readFilters() {
+      return {
+        min_price: document.getElementById("minPrice").value,
+        max_price: document.getElementById("maxPrice").value,
+        manufacturer: document.getElementById("manufacturerFilter").value.trim(),
+        state: document.getElementById("stateFilter").value,
+        body_type: document.getElementById("bodyTypeFilter").value.trim(),
+        sort: document.getElementById("sortFilter").value,
+      };
+    }
 
-    // Renders the table rows using a list of cars
-    function renderCars(carsList) {
+    function toQuery(filters) {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== "" && value !== null && value !== undefined) {
+          params.append(key, value);
+        }
+      });
+      return params.toString();
+    }
+
+    function renderCars(cars) {
       const tbody = document.querySelector("#carsTable tbody");
+      const empty = document.getElementById("emptyState");
       tbody.innerHTML = "";
 
-      carsList.forEach(car => {
+      if (!cars.length) {
+        empty.hidden = false;
+        return;
+      }
+
+      empty.hidden = true;
+      cars.forEach((car) => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>${car.id}</td>
           <td>${car.manufacturer} ${car.model}</td>
-          <td>$${car.price}</td>
+          <td>$${Number(car.price).toLocaleString()}</td>
           <td>${car.state}</td>
-          <td>
-            <span class="status-pill ${
-              car.status === "available" ? "status-available" : "status-sold"
-            }">${car.status}</span>
-          </td>
+          <td><span class="status-pill ${car.status === "available" ? "status-available" : "status-sold"}">${car.status}</span></td>
           <td>${car.body_type}</td>
-          <td>
-            <button class="primary-btn"
-              style="padding:.4rem .6rem;font-size:.7rem;width:auto;">
-              View
-            </button>
-          </td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    // Initial render of the full list
-    renderCars(demoCars);
+    async function loadCars() {
+      const feedback = document.getElementById("marketFeedback");
+      const query = toQuery(readFilters());
+      const url = query ? `${API_BASE}?${query}` : API_BASE;
 
-    // When you click "Apply Filters", we:
-    // 1. Build what the backend query string would look like
-    // 2. Filter demoCars locally (so you SEE the change)
-    document.getElementById("applyFiltersBtn").addEventListener("click", () => {
-      const q = {
-        status: "available", // We only want unsold cars
-        min_price: document.getElementById("minPrice").value,
-        max_price: document.getElementById("maxPrice").value,
-        manufacturer: document.getElementById("manufacturerFilter").value,
-        state: document.getElementById("stateFilter").value,
-        body_type: document.getElementById("bodyTypeFilter").value
-      };
+      try {
+        feedback.className = "feedback-box";
+        feedback.textContent = "Loading live listings...";
 
-      // Show the simulated API request that would be sent:
-      // /api/v1/car?status=available&min_price=... etc.
-      document.getElementById("marketFeedback").textContent =
-        "🔎 GET /api/v1/car with filters -> " + JSON.stringify(q);
+        const res = await fetch(url);
+        const body = await res.json();
 
-      // Locally filter demoCars just for visual feedback
-      const filtered = demoCars.filter(car => {
-        if (q.status && car.status !== q.status) return false;
-        if (q.min_price && car.price < Number(q.min_price)) return false;
-        if (q.max_price && car.price > Number(q.max_price)) return false;
-        if (q.manufacturer &&
-            car.manufacturer.toLowerCase() !== q.manufacturer.toLowerCase()) {
-          return false;
+        if (!res.ok) {
+          throw new Error(body.error || "Unable to load cars");
         }
-        if (q.state && car.state !== q.state) return false;
-        if (q.body_type && car.body_type !== q.body_type) return false;
-        return true;
-      });
 
-      // Re-render the table with only the filtered cars
-      renderCars(filtered);
-    });
+        renderCars(body.cars || []);
+        feedback.className = "feedback-box success";
+        feedback.textContent = `Loaded ${body.count} listings (total available: ${body.total}).`;
+      } catch (err) {
+        renderCars([]);
+        feedback.className = "feedback-box error";
+        feedback.textContent = `Error: ${err.message}. Ensure backend is running on 127.0.0.1:5000.`;
+      }
+    }
 
-    // "View Car Details" form:
-    // This simulates GET /api/v1/car/:id
-    document.getElementById("viewCarForm").addEventListener("submit", e => {
-      e.preventDefault();
+    document.getElementById("applyFiltersBtn").addEventListener("click", loadCars);
+    document.getElementById("refreshBtn").addEventListener("click", loadCars);
 
-      const data = Object.fromEntries(new FormData(e.target).entries());
-
-      // Show the mock request
-      document.getElementById("singleCarFeedback").textContent =
-        "🚘 GET /api/v1/car/" + data.car_id;
-
-      // Later, when backend is running:
-      // fetch(`/api/v1/car/${data.car_id}`)
-      //   .then(res => res.json())
-      //   .then(json => { ...display json... })
-    });
+    loadCars();
   </script>
-
 </body>
 </html>

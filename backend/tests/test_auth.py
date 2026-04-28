@@ -11,7 +11,16 @@ BASE_DIR = pathlib.Path(__file__).resolve().parents[1]
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
-from app import cars, create_app, orders, users  # noqa: E402
+from app import (  # noqa: E402
+    cars,
+    cars_by_id,
+    create_app,
+    orders,
+    orders_by_id,
+    users,
+    users_by_email,
+    users_by_id,
+)
 
 
 @pytest.fixture
@@ -19,6 +28,10 @@ def client():
     users.clear()
     cars.clear()
     orders.clear()
+    users_by_id.clear()
+    users_by_email.clear()
+    cars_by_id.clear()
+    orders_by_id.clear()
 
     app = create_app()
     app.config["TESTING"] = True
@@ -117,6 +130,7 @@ def test_seller_car_lifecycle_and_filter(client):
     filter_res = client.get("/api/v1/car?min_price=14000&max_price=14600")
     assert filter_res.status_code == 200
     assert filter_res.get_json()["count"] == 1
+    assert filter_res.get_json()["total"] == 1
 
     sold_res = client.patch(
         f"/api/v1/car/{car_id}/status",
@@ -216,3 +230,46 @@ def test_non_admin_cannot_delete_car(client):
     forbidden = client.delete(f"/api/v1/car/{car_id}", headers=auth_headers(buyer_token))
     assert forbidden.status_code == 403
     assert forbidden.get_json()["error"] == "Admin access required"
+
+
+def test_marketplace_advanced_filters_and_pagination(client):
+    seller_token = signup_and_token(client, "seller5@example.com")
+    payloads = [
+        {"state": "used", "price": 13000, "manufacturer": "Toyota", "model": "Rav4", "body_type": "SUV"},
+        {"state": "used", "price": 7000, "manufacturer": "Toyota", "model": "Yaris", "body_type": "Hatchback"},
+        {"state": "new", "price": 23000, "manufacturer": "Mazda", "model": "CX5", "body_type": "SUV"},
+    ]
+    for payload in payloads:
+        res = client.post("/api/v1/car", json=payload, headers=auth_headers(seller_token))
+        assert res.status_code == 201
+
+    res = client.get("/api/v1/car?manufacturer=toyota&state=used&sort=price_asc&page=1&limit=1")
+    assert res.status_code == 200
+    body = res.get_json()
+    assert body["count"] == 1
+    assert body["total"] == 2
+    assert body["cars"][0]["model"] == "Yaris"
+
+
+def test_cannot_order_own_car(client):
+    seller_token = signup_and_token(client, "seller6@example.com")
+    car_res = client.post(
+        "/api/v1/car",
+        json={
+            "state": "used",
+            "price": 5400,
+            "manufacturer": "Ford",
+            "model": "Fiesta",
+            "body_type": "Hatchback",
+        },
+        headers=auth_headers(seller_token),
+    )
+    car_id = car_res.get_json()["car"]["id"]
+
+    order_res = client.post(
+        "/api/v1/order",
+        json={"car_id": car_id, "amount": 5300},
+        headers=auth_headers(seller_token),
+    )
+    assert order_res.status_code == 400
+    assert order_res.get_json()["error"] == "Cannot place an order on your own car"

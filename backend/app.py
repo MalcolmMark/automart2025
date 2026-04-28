@@ -16,6 +16,12 @@ users = []
 cars = []
 orders = []
 
+# Fast lookup indexes for the in-memory data.
+users_by_id = {}
+users_by_email = {}
+cars_by_id = {}
+orders_by_id = {}
+
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
 car_bp = Blueprint("car", __name__, url_prefix="/api/v1/car")
@@ -37,7 +43,7 @@ def _now_iso() -> str:
 
 
 def _find_user(user_id: int):
-    return next((u for u in users if u["id"] == user_id), None)
+    return users_by_id.get(user_id)
 
 
 def _auth_user():
@@ -52,7 +58,7 @@ def _auth_user():
 
 
 def _find_car(car_id: int):
-    return next((c for c in cars if c["id"] == car_id), None)
+    return cars_by_id.get(car_id)
 
 
 def _serialize_car(car):
@@ -92,7 +98,7 @@ def signup():
         return jsonify({"error": "Missing required fields", "missing_fields": missing}), 400
 
     email = data["email"].strip().lower()
-    if any(u["email"] == email for u in users):
+    if email in users_by_email:
         return jsonify({"error": "User already exists"}), 400
 
     is_admin = False
@@ -113,6 +119,8 @@ def signup():
         "password_hash": generate_password_hash(data["password"], method="pbkdf2:sha256"),
     }
     users.append(user)
+    users_by_id[user_id] = user
+    users_by_email[email] = user
 
     access_token = create_access_token(identity=str(user["id"]), additional_claims={"is_admin": user["is_admin"]})
     return (
@@ -143,7 +151,7 @@ def signin():
     if not email or not password:
         return jsonify({"error": "Email and password are required"}), 400
 
-    user = next((u for u in users if u["email"] == email), None)
+    user = users_by_email.get(email)
     if not user or not check_password_hash(user["password_hash"], password):
         return jsonify({"error": "Invalid email or password"}), 400
 
@@ -200,6 +208,7 @@ def create_car():
         "body_type": str(data["body_type"]).strip(),
     }
     cars.append(car)
+    cars_by_id[car_id] = car
     return jsonify({"message": "Car ad posted", "car": _serialize_car(car)}), 201
 
 
@@ -213,16 +222,53 @@ def get_car(car_id: int):
 
 @car_bp.route("", methods=["GET"])
 def get_unsold_cars():
+    page = request.args.get("page", default=1, type=int)
+    limit = request.args.get("limit", default=20, type=int)
     min_price = request.args.get("min_price", type=float)
     max_price = request.args.get("max_price", type=float)
+    manufacturer = request.args.get("manufacturer", default="", type=str).strip().lower()
+    state = request.args.get("state", default="", type=str).strip().lower()
+    body_type = request.args.get("body_type", default="", type=str).strip().lower()
+    sort = request.args.get("sort", default="newest", type=str).strip().lower()
+
+    if page < 1 or limit < 1 or limit > 100:
+        return jsonify({"error": "page must be >= 1 and limit must be between 1 and 100"}), 400
 
     filtered = [car for car in cars if car["status"] == "available"]
     if min_price is not None:
         filtered = [car for car in filtered if car["price"] >= min_price]
     if max_price is not None:
         filtered = [car for car in filtered if car["price"] <= max_price]
+    if manufacturer:
+        filtered = [car for car in filtered if car["manufacturer"].strip().lower() == manufacturer]
+    if state:
+        filtered = [car for car in filtered if car["state"] == state]
+    if body_type:
+        filtered = [car for car in filtered if car["body_type"].strip().lower() == body_type]
 
-    return jsonify({"cars": [_serialize_car(car) for car in filtered], "count": len(filtered)}), 200
+    if sort == "price_asc":
+        filtered = sorted(filtered, key=lambda car: car["price"])
+    elif sort == "price_desc":
+        filtered = sorted(filtered, key=lambda car: car["price"], reverse=True)
+    else:
+        filtered = sorted(filtered, key=lambda car: car["id"], reverse=True)
+
+    total = len(filtered)
+    start = (page - 1) * limit
+    paged = filtered[start : start + limit]
+
+    return (
+        jsonify(
+            {
+                "cars": [_serialize_car(car) for car in paged],
+                "count": len(paged),
+                "total": total,
+                "page": page,
+                "limit": limit,
+            }
+        ),
+        200,
+    )
 
 
 @car_bp.route("/<int:car_id>/status", methods=["PATCH"])
@@ -284,6 +330,8 @@ def create_order():
         return jsonify({"error": "Car not found"}), 404
     if car["status"] != "available":
         return jsonify({"error": "Cannot place order for a sold car"}), 400
+    if car["owner"] == user["id"]:
+        return jsonify({"error": "Cannot place an order on your own car"}), 400
 
     try:
         offered = float(data.get("amount"))
@@ -303,6 +351,7 @@ def create_order():
         "price_offered": round(offered, 2),
     }
     orders.append(order)
+    orders_by_id[order_id] = order
     return jsonify({"message": "Order created", "order": _serialize_order(order)}), 201
 
 
@@ -313,7 +362,7 @@ def update_order_price(order_id: int):
     if not user:
         return jsonify({"error": "User not found"}), 401
 
-    order = next((item for item in orders if item["id"] == order_id), None)
+    order = orders_by_id.get(order_id)
     if not order:
         return jsonify({"error": "Order not found"}), 404
     if order["buyer"] != user["id"]:
@@ -358,6 +407,7 @@ def delete_car(car_id: int):
         return jsonify({"error": "Car not found"}), 404
 
     cars.remove(car)
+    cars_by_id.pop(car_id, None)
     return jsonify({"message": "Car ad deleted"}), 200
 
 

@@ -29,6 +29,11 @@ body {
   flex-direction: column;
 }
 
+.page-shell {
+  width: min(1100px, 100%);
+  margin: 0 auto;
+}
+
 /* Top nav bar */
 
 header {
@@ -37,6 +42,7 @@ header {
   gap: .5rem 1rem;
   align-items: center;
   margin-bottom: 2rem;
+  justify-content: space-between;
 }
 
 header .brand {
@@ -56,6 +62,12 @@ header nav a {
 header nav a:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+header nav a.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(56, 189, 248, 0.1);
 }
 
 /* Cards / panels */
@@ -78,6 +90,11 @@ header nav a:hover {
   width: 100%;
   margin-bottom: 2rem;
   overflow-x: auto;
+}
+
+.section-stack {
+  display: grid;
+  gap: 1rem;
 }
 
 /* Headings */
@@ -207,6 +224,12 @@ th {
   line-height: 1.4;
   color: var(--accent);
   min-height: 1.2rem;
+}
+
+.empty-state {
+  color: var(--text-dim);
+  padding: 1rem 0;
+  font-size: 0.9rem;
 }
 .feedback-box.error {
   color: var(--danger);
