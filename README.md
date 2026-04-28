@@ -4,10 +4,10 @@ AutoMart is an online marketplace for automobiles across different makes, models
 
 ## Project Status
 This repository currently includes:
-- A Flask backend API (`backend/`) with authentication endpoints.
+- A Flask backend API (`backend/`) with authentication, car ads, order flows, and admin moderation endpoints.
 - Static UI prototype pages (`automart/UI/`).
 
-## Core Features (Planned / In Scope)
+## Core Features Implemented
 - User sign up and sign in.
 - Seller can post a car sale advertisement.
 - Buyer can place a purchase order.
@@ -61,14 +61,37 @@ From the `backend/` directory:
 pytest -q
 ```
 
-## API Endpoints (Current)
-- `GET /` — health check.
-- `POST /api/v1/auth/signup` — register user.
+## API Endpoints
+
+### Health
+- `GET /` — API health check.
+
+### Auth
+- `POST /api/v1/auth/signup` — register user (supports optional admin code).
 - `POST /api/v1/auth/signin` — authenticate user.
 
-## UI Prototype
-Static prototype pages are in:
-- `automart/UI/`
+### Cars
+- `POST /api/v1/car` — post a car ad (JWT required).
+- `GET /api/v1/car` — list unsold cars (`min_price` / `max_price` optional query params).
+- `GET /api/v1/car/<car_id>` — view a specific car ad.
+- `PATCH /api/v1/car/<car_id>/status` — seller marks own ad as sold (JWT required).
+- `PATCH /api/v1/car/<car_id>/price` — seller updates own ad price (JWT required).
+- `DELETE /api/v1/car/<car_id>` — admin deletes an ad (JWT + admin required).
+
+### Orders
+- `POST /api/v1/order` — place purchase order for available car (JWT required).
+- `PATCH /api/v1/order/<order_id>/price` — buyer updates own order offer price (JWT required).
+
+### Admin
+- `GET /api/v1/admin/car` — list all posted ads (sold and unsold) (JWT + admin required).
+
+## Testing Coverage
+The backend test suite validates:
+- Authentication flows.
+- Seller ad lifecycle.
+- Buyer order workflow.
+- Admin moderation rules.
+- Authorization restrictions for protected actions.
 
 ## Author
 Malcolm Mark Okabo  

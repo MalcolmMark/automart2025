@@ -1,25 +1,29 @@
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
-from flask import Flask, request, jsonify, Blueprint
-from flask_jwt_extended import JWTManager, create_access_token
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask import Flask, Blueprint, jsonify, request
+from flask_jwt_extended import (
+    JWTManager,
+    create_access_token,
+    get_jwt,
+    get_jwt_identity,
+    jwt_required,
+)
+from werkzeug.security import check_password_hash, generate_password_hash
 
-# Temporary in-memory store (will be replaced by a real DB later)
+# Temporary in-memory stores (replace with DB in production)
 users = []
-
-# --- Blueprint setup ---
+cars = []
+orders = []
 
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
+car_bp = Blueprint("car", __name__, url_prefix="/api/v1/car")
+admin_bp = Blueprint("admin", __name__, url_prefix="/api/v1/admin")
+order_bp = Blueprint("order", __name__, url_prefix="/api/v1/order")
 
 
 def _get_jwt_secret() -> str:
-    """
-    Retrieve the JWT secret from the environment.
-
-    Extracted into a helper to reduce cognitive complexity inside create_app().
-    """
     try:
         return os.environ["JWT_SECRET_KEY"]
     except KeyError as exc:
@@ -28,63 +32,76 @@ def _get_jwt_secret() -> str:
         ) from exc
 
 
-@auth_bp.route("/signup", methods=["POST"])
-def signup():
-    """
-    Register a new user.
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
-    Expected JSON body:
-    {
-      "email": "you@example.com",
-      "first_name": "John",
-      "last_name": "Doe",
-      "password": "plaintext",
-      "address": "Kampala",
-      // optional:
-      "admin_code": "some-secret-code"
+
+def _find_user(user_id: int):
+    return next((u for u in users if u["id"] == user_id), None)
+
+
+def _auth_user():
+    identity = get_jwt_identity()
+    claims = get_jwt()
+    try:
+        user_id = int(identity)
+    except (TypeError, ValueError):
+        user_id = 0
+    user = _find_user(user_id)
+    return user, claims
+
+
+def _find_car(car_id: int):
+    return next((c for c in cars if c["id"] == car_id), None)
+
+
+def _serialize_car(car):
+    return {
+        "id": car["id"],
+        "owner": car["owner"],
+        "created_on": car["created_on"],
+        "state": car["state"],
+        "status": car["status"],
+        "price": car["price"],
+        "manufacturer": car["manufacturer"],
+        "model": car["model"],
+        "body_type": car["body_type"],
     }
 
-    Notes:
-    - We do NOT trust a client-side `is_admin` flag.
-    - Admin creation is controlled via ADMIN_SIGNUP_CODE env var.
-    """
+
+def _serialize_order(order):
+    return {
+        "id": order["id"],
+        "buyer": order["buyer"],
+        "car_id": order["car_id"],
+        "created_on": order["created_on"],
+        "status": order["status"],
+        "price": order["price"],
+        "price_offered": order["price_offered"],
+        "old_price_offered": order.get("old_price_offered"),
+    }
+
+
+@auth_bp.route("/signup", methods=["POST"])
+def signup():
     data = request.get_json(silent=True) or {}
 
-    required_fields = [
-        "email",
-        "first_name",
-        "last_name",
-        "password",
-        "address",
-    ]
-    missing = [f for f in required_fields if not data.get(f)]
+    required_fields = ["email", "first_name", "last_name", "password", "address"]
+    missing = [field for field in required_fields if not data.get(field)]
     if missing:
-        return (
-            jsonify(
-                {
-                    "error": "Missing required fields",
-                    "missing_fields": missing,
-                }
-            ),
-            400,
-        )
+        return jsonify({"error": "Missing required fields", "missing_fields": missing}), 400
 
     email = data["email"].strip().lower()
-
-    # Check for duplicate email
     if any(u["email"] == email for u in users):
         return jsonify({"error": "User already exists"}), 400
 
-    # Admin creation is guarded by an env-based secret code
     is_admin = False
     admin_code = data.get("admin_code")
     expected_admin_code = os.environ.get("ADMIN_SIGNUP_CODE")
-
     if admin_code and expected_admin_code and admin_code == expected_admin_code:
         is_admin = True
 
     user_id = len(users) + 1
-
     user = {
         "uuid": f"user_{user_id}",
         "id": user_id,
@@ -93,48 +110,33 @@ def signup():
         "last_name": data["last_name"].strip(),
         "address": data["address"].strip(),
         "is_admin": is_admin,
-        # Store only hashed password (PBKDF2, not raw SHA/scrypt)
-        "password_hash": generate_password_hash(
-            data["password"],
-            method="pbkdf2:sha256",
-        ),
+        "password_hash": generate_password_hash(data["password"], method="pbkdf2:sha256"),
     }
-
     users.append(user)
 
-    # Issue token on signup
-    access_token = create_access_token(
-        identity={"id": user["id"], "is_admin": user["is_admin"]}
+    access_token = create_access_token(identity=str(user["id"]), additional_claims={"is_admin": user["is_admin"]})
+    return (
+        jsonify(
+            {
+                "message": "User registered",
+                "user": {
+                    "id": user["id"],
+                    "email": user["email"],
+                    "first_name": user["first_name"],
+                    "last_name": user["last_name"],
+                    "address": user["address"],
+                    "is_admin": user["is_admin"],
+                },
+                "access_token": access_token,
+            }
+        ),
+        201,
     )
-
-    response_payload = {
-        "message": "User registered",
-        "user": {
-            "id": user["id"],
-            "email": user["email"],
-            "first_name": user["first_name"],
-            "last_name": user["last_name"],
-            "address": user["address"],
-            "is_admin": user["is_admin"],
-        },
-        "access_token": access_token,
-    }
-    return jsonify(response_payload), 201
 
 
 @auth_bp.route("/signin", methods=["POST"])
 def signin():
-    """
-    Sign in an existing user.
-
-    Expected JSON body:
-    {
-      "email": "goats@gmail.com",
-      "password": "plaintext"
-    }
-    """
     data = request.get_json(silent=True) or {}
-
     email = data.get("email", "").strip().lower()
     password = data.get("password")
 
@@ -142,15 +144,10 @@ def signin():
         return jsonify({"error": "Email and password are required"}), 400
 
     user = next((u for u in users if u["email"] == email), None)
-
     if not user or not check_password_hash(user["password_hash"], password):
-        # Generic message to avoid leaking which field is wrong
         return jsonify({"error": "Invalid email or password"}), 400
 
-    access_token = create_access_token(
-        identity={"id": user["id"], "is_admin": user["is_admin"]}
-    )
-
+    access_token = create_access_token(identity=str(user["id"]), additional_claims={"is_admin": user["is_admin"]})
     return (
         jsonify(
             {
@@ -170,39 +167,220 @@ def signin():
     )
 
 
+@car_bp.route("", methods=["POST"])
+@jwt_required()
+def create_car():
+    user, _ = _auth_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 401
+
+    data = request.get_json(silent=True) or {}
+    required_fields = ["state", "price", "manufacturer", "model", "body_type"]
+    missing = [field for field in required_fields if data.get(field) in (None, "")]
+    if missing:
+        return jsonify({"error": "Missing required fields", "missing_fields": missing}), 400
+
+    try:
+        price = float(data["price"])
+        if price <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({"error": "price must be a positive number"}), 400
+
+    car_id = len(cars) + 1
+    car = {
+        "id": car_id,
+        "owner": user["id"],
+        "created_on": _now_iso(),
+        "state": str(data["state"]).strip().lower(),
+        "status": "available",
+        "price": round(price, 2),
+        "manufacturer": str(data["manufacturer"]).strip(),
+        "model": str(data["model"]).strip(),
+        "body_type": str(data["body_type"]).strip(),
+    }
+    cars.append(car)
+    return jsonify({"message": "Car ad posted", "car": _serialize_car(car)}), 201
+
+
+@car_bp.route("/<int:car_id>", methods=["GET"])
+def get_car(car_id: int):
+    car = _find_car(car_id)
+    if not car:
+        return jsonify({"error": "Car not found"}), 404
+    return jsonify({"car": _serialize_car(car)}), 200
+
+
+@car_bp.route("", methods=["GET"])
+def get_unsold_cars():
+    min_price = request.args.get("min_price", type=float)
+    max_price = request.args.get("max_price", type=float)
+
+    filtered = [car for car in cars if car["status"] == "available"]
+    if min_price is not None:
+        filtered = [car for car in filtered if car["price"] >= min_price]
+    if max_price is not None:
+        filtered = [car for car in filtered if car["price"] <= max_price]
+
+    return jsonify({"cars": [_serialize_car(car) for car in filtered], "count": len(filtered)}), 200
+
+
+@car_bp.route("/<int:car_id>/status", methods=["PATCH"])
+@jwt_required()
+def mark_car_sold(car_id: int):
+    user, _ = _auth_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 401
+
+    car = _find_car(car_id)
+    if not car:
+        return jsonify({"error": "Car not found"}), 404
+    if car["owner"] != user["id"]:
+        return jsonify({"error": "Only the seller can update this ad"}), 403
+
+    car["status"] = "sold"
+    return jsonify({"message": "Car marked as sold", "car": _serialize_car(car)}), 200
+
+
+@car_bp.route("/<int:car_id>/price", methods=["PATCH"])
+@jwt_required()
+def update_car_price(car_id: int):
+    user, _ = _auth_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 401
+
+    car = _find_car(car_id)
+    if not car:
+        return jsonify({"error": "Car not found"}), 404
+    if car["owner"] != user["id"]:
+        return jsonify({"error": "Only the seller can update this ad"}), 403
+
+    data = request.get_json(silent=True) or {}
+    try:
+        price = float(data.get("price"))
+        if price <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({"error": "price must be a positive number"}), 400
+
+    car["price"] = round(price, 2)
+    return jsonify({"message": "Car price updated", "car": _serialize_car(car)}), 200
+
+
+@order_bp.route("", methods=["POST"])
+@jwt_required()
+def create_order():
+    user, _ = _auth_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 401
+
+    data = request.get_json(silent=True) or {}
+    car_id = data.get("car_id")
+    if not car_id:
+        return jsonify({"error": "car_id is required"}), 400
+
+    car = _find_car(int(car_id))
+    if not car:
+        return jsonify({"error": "Car not found"}), 404
+    if car["status"] != "available":
+        return jsonify({"error": "Cannot place order for a sold car"}), 400
+
+    try:
+        offered = float(data.get("amount"))
+        if offered <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({"error": "amount must be a positive number"}), 400
+
+    order_id = len(orders) + 1
+    order = {
+        "id": order_id,
+        "buyer": user["id"],
+        "car_id": car["id"],
+        "created_on": _now_iso(),
+        "status": "pending",
+        "price": car["price"],
+        "price_offered": round(offered, 2),
+    }
+    orders.append(order)
+    return jsonify({"message": "Order created", "order": _serialize_order(order)}), 201
+
+
+@order_bp.route("/<int:order_id>/price", methods=["PATCH"])
+@jwt_required()
+def update_order_price(order_id: int):
+    user, _ = _auth_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 401
+
+    order = next((item for item in orders if item["id"] == order_id), None)
+    if not order:
+        return jsonify({"error": "Order not found"}), 404
+    if order["buyer"] != user["id"]:
+        return jsonify({"error": "Only the buyer can update this order"}), 403
+
+    data = request.get_json(silent=True) or {}
+    try:
+        offered = float(data.get("amount"))
+        if offered <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({"error": "amount must be a positive number"}), 400
+
+    order["old_price_offered"] = order["price_offered"]
+    order["price_offered"] = round(offered, 2)
+    return jsonify({"message": "Order price updated", "order": _serialize_order(order)}), 200
+
+
+@admin_bp.route("/car", methods=["GET"])
+@jwt_required()
+def list_all_cars_admin():
+    user, _ = _auth_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 401
+    if not user["is_admin"]:
+        return jsonify({"error": "Admin access required"}), 403
+
+    return jsonify({"cars": [_serialize_car(car) for car in cars], "count": len(cars)}), 200
+
+
+@car_bp.route("/<int:car_id>", methods=["DELETE"])
+@jwt_required()
+def delete_car(car_id: int):
+    user, _ = _auth_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 401
+    if not user["is_admin"]:
+        return jsonify({"error": "Admin access required"}), 403
+
+    car = _find_car(car_id)
+    if not car:
+        return jsonify({"error": "Car not found"}), 404
+
+    cars.remove(car)
+    return jsonify({"message": "Car ad deleted"}), 200
+
+
 def create_app() -> Flask:
-    """
-    Application factory for the AutoMart backend.
-
-    Using a factory pattern allows:
-    - Multiple app instances (testing, dev, prod)
-    - Config injection
-    - Cleaner separation into blueprints later
-    """
     app = Flask(__name__)
-
-    # --- Configuration ---
-    jwt_secret = _get_jwt_secret()
-    app.config["JWT_SECRET_KEY"] = jwt_secret
+    app.config["JWT_SECRET_KEY"] = _get_jwt_secret()
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=1)
     app.config.setdefault("TESTING", False)
 
-    # Initialize JWT extension (no need to store in a local variable)
     JWTManager(app)
 
     @app.route("/")
     def home():
-        """
-        Simple health check for the API.
-        """
         return jsonify({"message": "AutoMart API v1 running"}), 200
 
-    # Register blueprints
     app.register_blueprint(auth_bp)
+    app.register_blueprint(car_bp)
+    app.register_blueprint(order_bp)
+    app.register_blueprint(admin_bp)
 
     return app
 
 
 if __name__ == "__main__":
     application = create_app()
-    isinstance(application, Flask)  # sanity check for type hinting ass
+    isinstance(application, Flask)
