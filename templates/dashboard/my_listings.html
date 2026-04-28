@@ -1,0 +1,2 @@
+{% extends 'base.html' %}
+{% block content %}<h1>My Listings</h1><a href="{% url 'cars:create' %}" class="btn btn-primary mb-3">Add Listing</a><ul class="list-group">{% for car in listings %}<li class="list-group-item d-flex justify-content-between">{{ car.title }} <span><a href="{% url 'cars:update' car.pk %}">Edit</a></span></li>{% empty %}<li class="list-group-item">No listings yet.</li>{% endfor %}</ul>{% endblock %}

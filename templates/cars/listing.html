@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Car Listings</h1>
+<form class="row g-2 mb-3">
+  <div class="col-md-4"><input class="form-control" name="q" value="{{ request.GET.q }}" placeholder="Search cars"></div>
+  <div class="col-md-2"><input class="form-control" type="number" name="min_price" placeholder="Min"></div>
+  <div class="col-md-2"><input class="form-control" type="number" name="max_price" placeholder="Max"></div>
+  <div class="col-md-2"><button class="btn btn-primary w-100">Filter</button></div>
+</form>
+<div class="row g-3">
+{% for car in page_obj %}
+  <div class="col-md-4"><div class="card h-100"><img src="{{ car.image.url }}" class="card-img-top"><div class="card-body"><h5>{{ car.title }}</h5><p>{{ car.brand }} {{ car.model }} | {{ car.year }}</p><p class="fw-bold">${{ car.price }}</p><a class="btn btn-outline-primary" href="{{ car.get_absolute_url }}">View</a></div></div></div>
+{% empty %}<p>No cars match your filters.</p>{% endfor %}
+</div>
+{% endblock %}

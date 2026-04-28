@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="hero p-5 rounded-4 mb-4 text-white">
+  <h1>Find Your Next Ride</h1><p>Discover verified vehicles from trusted sellers.</p>
+  <a class="btn btn-light" href="{% url 'cars:listing' %}">Browse Cars</a>
+</section>
+<div class="row g-3">
+{% for car in featured_cars %}
+  <div class="col-md-4"><div class="card h-100"><img src="{{ car.image.url }}" class="card-img-top"><div class="card-body"><h5>{{ car.title }}</h5><p>${{ car.price }}</p><a class="btn btn-sm btn-primary" href="{{ car.get_absolute_url }}">Details</a></div></div></div>
+{% empty %}<p>No featured cars yet.</p>{% endfor %}
+</div>
+{% endblock %}

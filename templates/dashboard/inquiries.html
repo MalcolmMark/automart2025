@@ -1,0 +1,2 @@
+{% extends 'base.html' %}
+{% block content %}<h1>Messages / Inquiries</h1><ul class="list-group">{% for i in inquiries %}<li class="list-group-item">{{ i.sender.username }} on {{ i.car.title }}: {{ i.message }}</li>{% empty %}<li class="list-group-item">No inquiries.</li>{% endfor %}</ul>{% endblock %}

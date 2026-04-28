@@ -1,0 +1,2 @@
+{% extends 'base.html' %}
+{% block content %}<h1>User Dashboard</h1><div class="row g-3"><div class="col-md-4"><div class="card p-3">My Listings: {{ stats.my_listings }}</div></div><div class="col-md-4"><div class="card p-3">Saved Cars: {{ stats.saved_cars }}</div></div><div class="col-md-4"><div class="card p-3">Inquiries: {{ stats.inquiries }}</div></div></div>{% endblock %}

@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row">
+<div class="col-md-7"><img class="img-fluid rounded" src="{{ car.image.url }}"></div>
+<div class="col-md-5"><h1>{{ car.title }}</h1><p>${{ car.price }}</p><p>{{ car.description }}</p><p>{{ car.location }}</p>
+{% if user.is_authenticated %}
+<a class="btn btn-outline-danger" href="{% url 'cars:favourite' car.pk %}">Save</a>
+<a class="btn btn-success" target="_blank" href="https://wa.me/{{ car.seller.profile.whatsapp|default:'' }}">WhatsApp Seller</a>
+<form action="{% url 'cars:inquiry' car.pk %}" method="post" class="mt-3">{% csrf_token %}{{ inquiry_form.as_p }}<button class="btn btn-primary">Send Inquiry</button></form>
+<form action="{% url 'cars:booking' car.pk %}" method="post" class="mt-3">{% csrf_token %}{{ booking_form.as_p }}<button class="btn btn-secondary">Book Inspection</button></form>
+{% endif %}
+</div>
+</div>
+{% endblock %}
