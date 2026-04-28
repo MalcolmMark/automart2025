@@ -1,98 +1,67 @@
-# AutoMart 2025
+# Automart 2025
 
-AutoMart is an online marketplace for automobiles across different makes, models, and body types. The platform supports private sellers and dealerships, and allows buyers to discover and purchase listed vehicles.
+Automart 2025 is a production-ready Django automobile marketplace where users can browse, buy, and sell vehicles with modern UX and role-based workflows.
 
-## Project Status
-This repository currently includes:
-- A Flask backend API (`backend/`) with authentication, car ads, order flows, and admin moderation endpoints.
-- Static UI prototype pages (`automart/UI/`).
+## Features
+- User registration, login, logout, and profile management.
+- Car listing lifecycle: create, edit, delete, search, filter, and pagination.
+- Car details with inquiry form, inspection booking, and favourites.
+- Seller dashboard for listings, saved cars, and inquiries.
+- Admin dashboard and Django admin customization for moderation.
+- Contact page and stored contact inquiries.
+- PostgreSQL-ready environment configuration and whitenoise static handling.
+- Custom 404 and 500 pages.
 
-## Core Features Implemented
-- User sign up and sign in.
-- Seller can post a car sale advertisement.
-- Buyer can place a purchase order.
-- Buyer can update the price of a purchase order.
-- Seller can mark a posted ad as sold.
-- Seller can update the price of a posted ad.
-- Users can view a specific car.
-- Users can view all unsold cars.
-- Users can filter unsold cars by price range.
-- Admin can delete a posted ad.
-- Admin can view all posted ads (sold and unsold).
+## Screenshots
+- `docs/screenshots/home.png` (placeholder)
+- `docs/screenshots/listings.png` (placeholder)
+- `docs/screenshots/dashboard.png` (placeholder)
 
-## Tech Stack
-- Python 3.10+
-- Flask
-- Flask-JWT-Extended
-- Pytest
-
-## Getting Started
-
-### 1) Clone the repository
+## Installation Guide
 ```bash
-git clone https://github.com/MalcolmMark/automart2025.git
+git clone <your-repo-url>
 cd automart2025
-```
-
-### 2) Set up backend dependencies
-```bash
-cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
 ```
 
-### 3) Configure environment variables
+## Run the Project
 ```bash
-export JWT_SECRET_KEY="replace-with-a-long-random-secret"
-export ADMIN_SIGNUP_CODE="replace-with-admin-signup-code"
+python manage.py makemigrations
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
 ```
 
-### 4) Run the backend
+## Run Tests
 ```bash
-flask --app app:create_app run --debug
+python manage.py test
 ```
 
-The API will be available at `http://127.0.0.1:5000`.
+## Deployment Guide (Render / Railway / PythonAnywhere)
+1. Set environment variables: `SECRET_KEY`, `DEBUG=False`, `ALLOWED_HOSTS`, `DATABASE_URL`.
+2. Use `gunicorn config.wsgi:application` as start command.
+3. Run collectstatic during build:
+   ```bash
+   python manage.py collectstatic --noinput
+   python manage.py migrate
+   ```
+4. Configure persistent media storage (e.g., S3 or external disk) for production uploads.
 
-## Running Tests
-From the `backend/` directory:
-```bash
-pytest -q
+## Project Structure
 ```
-
-## API Endpoints
-
-### Health
-- `GET /` — API health check.
-
-### Auth
-- `POST /api/v1/auth/signup` — register user (supports optional admin code).
-- `POST /api/v1/auth/signin` — authenticate user.
-
-### Cars
-- `POST /api/v1/car` — post a car ad (JWT required).
-- `GET /api/v1/car` — list unsold cars (`min_price` / `max_price` optional query params).
-- `GET /api/v1/car/<car_id>` — view a specific car ad.
-- `PATCH /api/v1/car/<car_id>/status` — seller marks own ad as sold (JWT required).
-- `PATCH /api/v1/car/<car_id>/price` — seller updates own ad price (JWT required).
-- `DELETE /api/v1/car/<car_id>` — admin deletes an ad (JWT + admin required).
-
-### Orders
-- `POST /api/v1/order` — place purchase order for available car (JWT required).
-- `PATCH /api/v1/order/<order_id>/price` — buyer updates own order offer price (JWT required).
-
-### Admin
-- `GET /api/v1/admin/car` — list all posted ads (sold and unsold) (JWT + admin required).
-
-## Testing Coverage
-The backend test suite validates:
-- Authentication flows.
-- Seller ad lifecycle.
-- Buyer order workflow.
-- Admin moderation rules.
-- Authorization restrictions for protected actions.
-
-## Author
-Malcolm Mark Okabo  
-Email: `malcolmmarkokabo@gmail.com`
+automart2025/
+├── manage.py
+├── requirements.txt
+├── .env.example
+├── config/
+├── accounts/
+├── cars/
+├── dashboard/
+├── core/
+├── templates/
+├── static/
+└── media/
+```
